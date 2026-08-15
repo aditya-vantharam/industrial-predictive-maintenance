@@ -4,155 +4,216 @@ import joblib
 from pathlib import Path
 
 
-# ============================================================
-# PAGE CONFIG
-# ============================================================
+# =========================================================
+# PAGE SETUP
+# =========================================================
 
 st.set_page_config(
-    page_title="Machine Failure Predictor",
-    page_icon="🔧",
+    page_title="Machine Reliability Monitor",
+    page_icon="🏭",
     layout="wide"
 )
 
 
-# ============================================================
+# =========================================================
 # LOAD MODEL
-# ============================================================
+# =========================================================
 
-model_path = (
-    Path(__file__).parent
-    / "models"
-    / "xgboost_predictive_maintenance.pkl"
-)
+model_path = Path(__file__).parent / "models" / "xgboost_predictive_maintenance.pkl"
 
 try:
     model = joblib.load(model_path)
 except Exception as e:
-    st.error("Unable to load the prediction model.")
+    st.error("Model could not be loaded.")
     st.write(e)
     st.stop()
 
 
-# ============================================================
+# =========================================================
 # HEADER
-# ============================================================
+# =========================================================
 
-st.title("🔧 Machine Failure Predictor")
+st.title("🏭 Machine Reliability Monitor")
 
 st.write(
-    "Evaluate industrial machine conditions and estimate "
-    "the likelihood of equipment failure."
+    "A machine-learning based system for evaluating "
+    "industrial operating conditions and estimating failure risk."
 )
 
 st.divider()
 
 
-# ============================================================
-# INPUT SECTION
-# ============================================================
+# =========================================================
+# SIDEBAR INPUTS
+# =========================================================
 
-st.subheader("Machine Configuration")
+st.sidebar.header("⚙️ Machine Inputs")
 
-col1, col2 = st.columns(2)
+machine_type = st.sidebar.selectbox(
+    "Machine Type",
+    ["L", "M", "H"]
+)
 
-with col1:
+air_temperature = st.sidebar.number_input(
+    "Air Temperature [K]",
+    min_value=250.0,
+    max_value=350.0,
+    value=300.0,
+    step=0.1
+)
 
-    machine_type = st.selectbox(
-        "Machine Type",
-        ["L", "M", "H"]
-    )
+process_temperature = st.sidebar.number_input(
+    "Process Temperature [K]",
+    min_value=250.0,
+    max_value=400.0,
+    value=310.0,
+    step=0.1
+)
 
-    air_temperature = st.number_input(
-        "Air Temperature [K]",
-        min_value=250.0,
-        max_value=350.0,
-        value=300.0,
-        step=0.1
-    )
+rotational_speed = st.sidebar.number_input(
+    "Rotational Speed [rpm]",
+    min_value=500,
+    max_value=3000,
+    value=1500,
+    step=10
+)
 
-    process_temperature = st.number_input(
-        "Process Temperature [K]",
-        min_value=250.0,
-        max_value=400.0,
-        value=310.0,
-        step=0.1
-    )
+torque = st.sidebar.number_input(
+    "Torque [Nm]",
+    min_value=0.0,
+    max_value=100.0,
+    value=40.0,
+    step=0.5
+)
 
-
-with col2:
-
-    rotational_speed = st.number_input(
-        "Rotational Speed [rpm]",
-        min_value=500,
-        max_value=3000,
-        value=1500,
-        step=10
-    )
-
-    torque = st.number_input(
-        "Torque [Nm]",
-        min_value=0.0,
-        max_value=100.0,
-        value=40.0,
-        step=0.5
-    )
-
-    tool_wear = st.number_input(
-        "Tool Wear [min]",
-        min_value=0,
-        max_value=300,
-        value=100,
-        step=1
-    )
+tool_wear = st.sidebar.number_input(
+    "Tool Wear [min]",
+    min_value=0,
+    max_value=300,
+    value=100,
+    step=1
+)
 
 
-# ============================================================
+# =========================================================
 # FEATURE ENGINEERING
-# ============================================================
+# =========================================================
 
 temperature_difference = (
     process_temperature - air_temperature
 )
 
 
-# ============================================================
-# QUICK CONDITION SUMMARY
-# ============================================================
+# =========================================================
+# CURRENT CONDITIONS
+# =========================================================
 
-st.divider()
+st.header("Current Operating Conditions")
 
-st.subheader("Condition Summary")
-
-c1, c2, c3 = st.columns(3)
+c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-    st.write("**Machine Type**")
-    st.write(f"Type {machine_type}")
+    st.metric(
+        "Machine",
+        machine_type
+    )
 
 with c2:
-    st.write("**Temperature Difference**")
-    st.write(f"{temperature_difference:.1f} K")
+    st.metric(
+        "Air Temperature",
+        f"{air_temperature:.1f} K"
+    )
 
 with c3:
-    st.write("**Tool Wear**")
-    st.write(f"{tool_wear} min")
+    st.metric(
+        "Process Temperature",
+        f"{process_temperature:.1f} K"
+    )
 
+with c4:
+    st.metric(
+        "Temperature Difference",
+        f"{temperature_difference:.1f} K"
+    )
 
-# ============================================================
-# PREDICTION
-# ============================================================
 
 st.divider()
 
+
+# =========================================================
+# OPERATING PARAMETERS
+# =========================================================
+
+st.header("Operating Parameters")
+
+p1, p2, p3 = st.columns(3)
+
+with p1:
+    st.metric(
+        "Rotational Speed",
+        f"{rotational_speed} rpm"
+    )
+
+with p2:
+    st.metric(
+        "Torque",
+        f"{torque:.1f} Nm"
+    )
+
+with p3:
+    st.metric(
+        "Tool Wear",
+        f"{tool_wear} min"
+    )
+
+
+# =========================================================
+# QUICK CONDITION CHECK
+# =========================================================
+
+st.subheader("Parameter Check")
+
+warnings = []
+
+if rotational_speed > 2200:
+    warnings.append("High rotational speed")
+
+if torque > 65:
+    warnings.append("High torque")
+
+if tool_wear > 200:
+    warnings.append("High tool wear")
+
+if temperature_difference > 30:
+    warnings.append("Large temperature difference")
+
+
+if warnings:
+
+    for warning in warnings:
+        st.warning("⚠️ " + warning)
+
+else:
+
+    st.success(
+        "✓ No major parameter warning detected."
+    )
+
+
+st.divider()
+
+
+# =========================================================
+# PREDICTION
+# =========================================================
+
+st.header("Failure Risk Assessment")
+
 if st.button(
-    "🔍 Analyze Machine",
+    "Run Failure Prediction",
     type="primary",
     use_container_width=True
 ):
-
-    # --------------------------------------------------------
-    # MODEL INPUT
-    # --------------------------------------------------------
 
     input_data = pd.DataFrame({
         "Type": [machine_type],
@@ -165,11 +226,6 @@ if st.button(
             temperature_difference
         ]
     })
-
-
-    # --------------------------------------------------------
-    # PREDICTION
-    # --------------------------------------------------------
 
     try:
 
@@ -186,271 +242,165 @@ if st.button(
         st.stop()
 
 
-    failure_percent = probability * 100
+    # =====================================================
+    # HEALTH SCORE
+    # =====================================================
+
+    health = (1 - probability) * 100
+
+    health = max(
+        0,
+        min(100, health)
+    )
 
 
-    # ========================================================
-    # RESULT
-    # ========================================================
+    # =====================================================
+    # RISK LEVEL
+    # =====================================================
 
-    st.divider()
+    if probability >= 0.70:
 
-    st.subheader("Prediction")
+        risk_level = "CRITICAL"
 
-    result_col1, result_col2 = st.columns([1, 2])
+    elif probability >= 0.30:
 
-    with result_col1:
+        risk_level = "MODERATE"
 
+    else:
+
+        risk_level = "LOW"
+
+
+    # =====================================================
+    # RESULT METRICS
+    # =====================================================
+
+    st.subheader("Prediction Result")
+
+    r1, r2, r3 = st.columns(3)
+
+    with r1:
         st.metric(
             "Failure Probability",
-            f"{failure_percent:.2f}%"
+            f"{probability * 100:.2f}%"
         )
 
-    with result_col2:
-
-        if prediction == 1:
-
-            st.error(
-                "⚠️ FAILURE RISK DETECTED"
-            )
-
-        else:
-
-            st.success(
-                "✅ MACHINE OPERATING NORMALLY"
-            )
-
-
-    # ========================================================
-    # RISK LEVEL
-    # ========================================================
-
-    if failure_percent >= 70:
-
-        risk = "Critical"
-        recommendation = (
-            "Inspect the machine before continuing "
-            "normal operation."
+    with r2:
+        st.metric(
+            "Machine Health",
+            f"{health:.0f}%"
         )
 
-    elif failure_percent >= 30:
+    with r3:
+        st.metric(
+            "Risk Classification",
+            risk_level
+        )
 
-        risk = "Moderate"
-        recommendation = (
-            "Increase monitoring and consider "
+
+    # =====================================================
+    # STATUS
+    # =====================================================
+
+    if prediction == 1:
+
+        st.error(
+            "⚠️ FAILURE RISK DETECTED"
+        )
+
+        st.write(
+            "The model predicts that the current operating "
+            "conditions may be associated with machine failure."
+        )
+
+    else:
+
+        st.success(
+            "✅ MACHINE OPERATING NORMALLY"
+        )
+
+        st.write(
+            "The model does not currently detect a high "
+            "failure risk under the entered conditions."
+        )
+
+
+    # =====================================================
+    # RECOMMENDATION
+    # =====================================================
+
+    st.subheader("Maintenance Recommendation")
+
+    if probability >= 0.70:
+
+        st.error(
+            "Immediate inspection is recommended. "
+            "Check machine load, rotational speed, "
+            "temperature and tool condition."
+        )
+
+    elif probability >= 0.30:
+
+        st.warning(
+            "Increase monitoring frequency and consider "
             "preventive maintenance."
         )
 
     else:
 
-        risk = "Low"
-        recommendation = (
-            "Continue normal operation and follow "
-            "the scheduled maintenance plan."
+        st.info(
+            "Continue normal monitoring and follow the "
+            "planned preventive-maintenance schedule."
         )
 
 
-    st.write(
-        f"**Risk classification:** {risk}"
-    )
+    # =====================================================
+    # INPUT SUMMARY
+    # =====================================================
 
-    st.info(
-        f"**Recommended action:** {recommendation}"
-    )
+    st.subheader("Assessment Details")
 
+    result_table = pd.DataFrame({
+        "Parameter": [
+            "Machine Type",
+            "Air Temperature",
+            "Process Temperature",
+            "Temperature Difference",
+            "Rotational Speed",
+            "Torque",
+            "Tool Wear",
+            "Failure Probability",
+            "Machine Health",
+            "Risk Classification"
+        ],
 
-    # ========================================================
-    # NEW FEATURE: CONDITION INDICATORS
-    # ========================================================
-
-    st.divider()
-
-    st.subheader("Operating Condition Indicators")
-
-    indicators = []
-
-    # Temperature
-    if temperature_difference >= 25:
-        indicators.append(
-            ("Temperature difference", "Attention")
-        )
-    else:
-        indicators.append(
-            ("Temperature difference", "Normal")
-        )
-
-    # Speed
-    if rotational_speed >= 2200:
-        indicators.append(
-            ("Rotational speed", "Attention")
-        )
-    else:
-        indicators.append(
-            ("Rotational speed", "Normal")
-        )
-
-    # Torque
-    if torque >= 60:
-        indicators.append(
-            ("Torque", "Attention")
-        )
-    else:
-        indicators.append(
-            ("Torque", "Normal")
-        )
-
-    # Tool wear
-    if tool_wear >= 200:
-        indicators.append(
-            ("Tool wear", "Attention")
-        )
-    else:
-        indicators.append(
-            ("Tool wear", "Normal")
-        )
-
-
-    indicator_df = pd.DataFrame(
-        indicators,
-        columns=["Parameter", "Condition"]
-    )
+        "Value": [
+            machine_type,
+            f"{air_temperature:.1f} K",
+            f"{process_temperature:.1f} K",
+            f"{temperature_difference:.1f} K",
+            f"{rotational_speed} rpm",
+            f"{torque:.1f} Nm",
+            f"{tool_wear} min",
+            f"{probability * 100:.2f}%",
+            f"{health:.0f}%",
+            risk_level
+        ]
+    })
 
     st.dataframe(
-        indicator_df,
+        result_table,
         use_container_width=True,
         hide_index=True
     )
 
 
-    # ========================================================
-    # NEW FEATURE: SIMPLE RISK GAUGE
-    # ========================================================
-
-    st.subheader("Failure Risk")
-
-    st.progress(
-        min(probability, 1.0),
-        text=f"Estimated failure risk: {failure_percent:.2f}%"
-    )
-
-
-    # ========================================================
-    # NEW FEATURE: WHAT-IF ANALYSIS
-    # ========================================================
-
-    st.divider()
-
-    st.subheader("What-if Analysis")
-
-    st.write(
-        "Change one operating parameter below to see how "
-        "the model's predicted probability changes."
-    )
-
-    selected_parameter = st.selectbox(
-        "Parameter to vary",
-        [
-            "Tool Wear",
-            "Torque",
-            "Rotational Speed"
-        ]
-    )
-
-
-    if selected_parameter == "Tool Wear":
-
-        test_value = st.slider(
-            "Test Tool Wear [min]",
-            0,
-            300,
-            int(tool_wear)
-        )
-
-        test_input = input_data.copy()
-
-        test_input["Tool wear [min]"] = test_value
-
-
-    elif selected_parameter == "Torque":
-
-        test_value = st.slider(
-            "Test Torque [Nm]",
-            0.0,
-            100.0,
-            float(torque),
-            0.5
-        )
-
-        test_input = input_data.copy()
-
-        test_input["Torque [Nm]"] = test_value
-
-
-    else:
-
-        test_value = st.slider(
-            "Test Rotational Speed [rpm]",
-            500,
-            3000,
-            int(rotational_speed),
-            10
-        )
-
-        test_input = input_data.copy()
-
-        test_input["Rotational speed [rpm]"] = test_value
-
-
-    try:
-
-        what_if_probability = model.predict_proba(
-            test_input
-        )[0][1]
-
-        what_if_percent = what_if_probability * 100
-
-        st.metric(
-            "What-if Failure Probability",
-            f"{what_if_percent:.2f}%"
-        )
-
-        difference = (
-            what_if_percent - failure_percent
-        )
-
-        if difference > 0:
-
-            st.warning(
-                f"Risk increased by {difference:.2f} percentage points."
-            )
-
-        elif difference < 0:
-
-            st.success(
-                f"Risk decreased by {abs(difference):.2f} percentage points."
-            )
-
-        else:
-
-            st.info(
-                "The predicted risk is unchanged."
-            )
-
-    except Exception as e:
-
-        st.warning(
-            "What-if analysis could not be calculated."
-        )
-        st.write(e)
-
-
-# ============================================================
+# =========================================================
 # FOOTER
-# ============================================================
+# =========================================================
 
 st.divider()
 
 st.caption(
-    "Industrial Predictive Maintenance | "
-    "XGBoost-based decision support"
+    "Machine Reliability Monitor | XGBoost Predictive Maintenance"
 )
